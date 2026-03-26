@@ -14,7 +14,7 @@ A Claude Code plugin that automatically tracks skill, agent, and MCP tool usage 
   - Leaderboards: Skill Usage · Agent Usage · MCP Tool Usage
   - Recent event feed with hostname and project context
 - **Period filters**: 24H · 7D · 30D · ALL
-- **Multi-session aware**: only the first Claude Code instance starts the HTTP server; additional sessions forward events to it
+- **Multi-session aware**: the HTTP server runs as a background daemon shared across all Claude Code sessions — it starts with the first session and shuts down only after all sessions have exited
 
 ## Requirements
 
