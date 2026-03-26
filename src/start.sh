@@ -4,4 +4,4 @@ cd "$ROOT"
 if [ ! -d node_modules ]; then
   npm install --silent
 fi
-exec node src/server.js
+exec node --no-warnings src/server.js
