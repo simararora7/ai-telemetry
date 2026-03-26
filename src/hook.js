@@ -9,22 +9,12 @@
 const https = require("https");
 const http = require("http");
 
-const BUILTIN_AGENTS = new Set([
-  "general-purpose",
-  "Explore",
-  "Plan",
-  "claude-code-guide",
-  "statusline-setup",
-  "code-reviewer",
-]);
-
 function buildPayload(data) {
   const toolName = data.tool_name ?? "";
   const inp = data.tool_input ?? {};
   const base = {
     session_id: data.session_id ?? "",
     cwd: data.cwd ?? "",
-    hostname: require("os").hostname(),
     timestamp: new Date().toISOString(),
   };
 
@@ -39,7 +29,6 @@ function buildPayload(data) {
 
   if (toolName === "Agent") {
     const agentType = inp.subagent_type ?? inp.name ?? "unknown";
-    if (BUILTIN_AGENTS.has(agentType)) return null;
     return {
       ...base,
       event_type: "agent",

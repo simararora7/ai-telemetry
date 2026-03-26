@@ -60,7 +60,6 @@ function startHttpServer() {
       detail     TEXT,
       session_id TEXT,
       cwd        TEXT,
-      hostname   TEXT,
       timestamp  TEXT
     )
   `);
@@ -69,14 +68,14 @@ function startHttpServer() {
   const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map((r) => r.name);
   if (tables.includes("skill_events")) {
     db.exec(`
-      INSERT OR IGNORE INTO events (id, event_type, name, detail, session_id, cwd, hostname, timestamp)
-      SELECT id, 'skill', skill, args, session_id, cwd, hostname, timestamp FROM skill_events
+      INSERT OR IGNORE INTO events (id, event_type, name, detail, session_id, cwd, timestamp)
+      SELECT id, 'skill', skill, args, session_id, cwd, timestamp FROM skill_events
     `);
     db.exec("DROP TABLE skill_events");
   }
 
   const insert = db.prepare(
-    "INSERT INTO events (event_type, name, detail, session_id, cwd, hostname, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)"
+    "INSERT INTO events (event_type, name, detail, session_id, cwd, timestamp) VALUES (?, ?, ?, ?, ?, ?)"
   );
 
   const OFFSETS = { "24h": "-1 day", "7d": "-7 days", "30d": "-30 days" };
@@ -97,7 +96,7 @@ function startHttpServer() {
     const mcpRows = run(`SELECT name, COUNT(*) AS n FROM events ${mw} GROUP BY name ORDER BY n DESC LIMIT 15`);
 
     const timelineRaw = run(`SELECT date(timestamp) AS date, event_type, COUNT(*) AS n FROM events ${where} GROUP BY date(timestamp), event_type ORDER BY date`);
-    const recentRows  = run(`SELECT id, event_type, name, hostname, cwd, timestamp FROM events ${where} ORDER BY id DESC LIMIT 30`);
+    const recentRows  = run(`SELECT id, event_type, name, cwd, timestamp FROM events ${where} ORDER BY id DESC LIMIT 30`);
 
     const tl = {};
     for (const r of timelineRaw) {
@@ -118,7 +117,7 @@ function startHttpServer() {
       timeline,
       recent: recentRows.map((r) => ({
         id: r.id, event_type: r.event_type, name: r.name,
-        hostname: r.hostname, project: path.basename(r.cwd || "") || "—", timestamp: r.timestamp,
+        project: path.basename(r.cwd || "") || "—", timestamp: r.timestamp,
       })),
     };
   }
@@ -138,7 +137,7 @@ function startHttpServer() {
           const d = JSON.parse(body);
           insert.run(d.event_type ?? "skill", d.name ?? d.skill ?? "unknown",
             d.detail ?? d.args ?? null, d.session_id ?? null,
-            d.cwd ?? null, d.hostname ?? null, d.timestamp ?? new Date().toISOString());
+            d.cwd ?? null, d.timestamp ?? new Date().toISOString());
         } catch (_) {}
         res.writeHead(204).end();
       });

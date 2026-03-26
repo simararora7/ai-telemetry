@@ -26,7 +26,7 @@ There are no tests or lint scripts defined in `package.json`.
 The plugin has three components that interact:
 
 ### `src/hook.js` — PostToolUse hook (fire-and-forget)
-Reads a JSON event from stdin (injected by Claude Code after each tool call), classifies it as a `skill`, `agent`, or `mcp` event, and POSTs it to the HTTP server at `AI_TELEMETRY_URL` (default `http://localhost:8765/api/events`). Built-in agents (`general-purpose`, `Explore`, `Plan`, etc.) are filtered out. Never blocks or surfaces errors to Claude.
+Reads a JSON event from stdin (injected by Claude Code after each tool call), classifies it as a `skill`, `agent`, or `mcp` event, and POSTs it to the HTTP server at `AI_TELEMETRY_URL` (default `http://localhost:8765/api/events`). All agent types are tracked, including built-ins. Never blocks or surfaces errors to Claude.
 
 ### `src/server.js` — Dual-mode: MCP session + HTTP daemon
 
@@ -44,7 +44,7 @@ The daemon is spawned with `detached: true` so it outlives any single Claude Cod
 
 **SQLite schema** (single `events` table):
 ```
-id, event_type (skill|agent|mcp), name, detail, session_id, cwd, hostname, timestamp
+id, event_type (skill|agent|mcp), name, detail, session_id, cwd, timestamp
 ```
 On first startup, any legacy `skill_events` table (from a prior Python server) is migrated and dropped.
 
