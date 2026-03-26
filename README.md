@@ -2,6 +2,8 @@
 
 A Claude Code plugin that automatically tracks skill, agent, and MCP tool usage across all your Claude Code sessions and serves a live dashboard.
 
+![Dashboard](static/img/dashboard.png)
+
 ## What it does
 
 - **Auto-tracks** every skill invocation, custom agent spawn, and MCP tool call via a PostToolUse hook — no manual instrumentation needed
