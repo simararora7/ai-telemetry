@@ -24,7 +24,7 @@ A Claude Code plugin that automatically tracks skill, agent, and MCP tool usage 
 ### 1. Add the marketplace
 
 ```bash
-claude plugin marketplace add ai-telemetry https://github.com/simararora7/ai-telemetry
+claude plugin marketplace add https://github.com/simararora7/ai-telemetry
 ```
 
 ### 2. Install the plugin
