@@ -1,0 +1,11 @@
+{
+  "name": "ai-telemetry",
+  "version": "0.1.0",
+  "description": "Auto-tracks skill, agent, and MCP usage. Starts a local telemetry server and wires up hooks automatically.",
+  "mcpServers": {
+    "ai-telemetry": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/src/server.js"]
+    }
+  }
+}

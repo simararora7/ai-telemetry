@@ -1,0 +1,17 @@
+{
+  "name": "ai-telemetry",
+  "version": "0.1.0",
+  "description": "Claude Code telemetry — auto-tracks skill, agent, and MCP usage",
+  "license": "MIT",
+  "engines": { "node": ">=22.5" },
+  "bin": {
+    "ai-telemetry": "./src/server.js"
+  },
+  "files": [
+    "src/",
+    "static/"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.10.2"
+  }
+}

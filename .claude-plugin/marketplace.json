@@ -1,0 +1,13 @@
+{
+  "name": "ai-telemetry",
+  "owner": {
+    "name": "Simar"
+  },
+  "plugins": [
+    {
+      "name": "ai-telemetry",
+      "description": "Auto-tracks skill, agent, and MCP usage in Claude Code.",
+      "source": "./"
+    }
+  ]
+}

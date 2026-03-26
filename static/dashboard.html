@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ai-telemetry</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #0a0a08;
+      --surface:      #111110;
+      --border:       #252522;
+      --border-hi:    #3a3a36;
+
+      /* event-type colors */
+      --amber:        #E8A048;
+      --amber-dim:    rgba(232,160,72,0.14);
+      --amber-glow:   rgba(232,160,72,0.08);
+
+      --lime:         #6BAF7A;
+      --lime-dim:     rgba(107,175,122,0.14);
+      --lime-glow:    rgba(107,175,122,0.08);
+
+      --teal:         #5B8FA8;
+      --teal-dim:     rgba(91,143,168,0.14);
+      --teal-glow:    rgba(91,143,168,0.08);
+
+      --violet:       #9B72CF;
+      --violet-dim:   rgba(155,114,207,0.14);
+      --violet-glow:  rgba(155,114,207,0.08);
+
+      --emerald:      #5A8C62;   /* live dot only */
+      --text-1:       #E8E4D9;
+      --text-2:       #8A8680;
+      --text-3:       #4A4844;
+      --font:         'Martian Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text-1);
+      min-height: 100vh;
+      font-size: 0.75rem;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* CRT scanline overlay */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px, transparent 1px,
+        rgba(0,0,0,0.032) 1px, rgba(0,0,0,0.032) 2px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ── Header ───────────────────────────────────────── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.5rem;
+    }
+
+    .logo {
+      font-size: 0.8rem;
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      color: var(--text-1);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .logo-prefix { color: var(--text-3); font-weight: 300; }
+
+    .logo-cursor {
+      display: inline-block;
+      width: 7px;
+      height: 0.85em;
+      background: var(--amber);
+      vertical-align: text-bottom;
+      margin-left: 1px;
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+
+    .header-center {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.6rem;
+      color: var(--text-3);
+      letter-spacing: 0.06em;
+    }
+
+    .live-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--emerald);
+      animation: pulse 2.2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.25; }
+    }
+
+    .period-filter { display: flex; gap: 2px; }
+
+    .period-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-3);
+      font-family: var(--font);
+      font-size: 0.6rem;
+      letter-spacing: 0.08em;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: color 0.12s, border-color 0.12s, background 0.12s;
+    }
+
+    .period-btn:hover { color: var(--text-1); border-color: var(--border-hi); }
+
+    .period-btn.active {
+      background: var(--amber);
+      color: var(--bg);
+      font-weight: 700;
+      border-color: var(--amber);
+    }
+
+    /* ── KPI Strip ────────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .kpi-card {
+      background: var(--bg);
+      padding: 1.75rem 1.5rem 1.5rem;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    /* Color variants — left border + corner glow + value color */
+    .kpi-card.c-amber   { box-shadow: inset 2px 0 0 var(--amber); }
+    .kpi-card.c-amber .kpi-value { color: var(--amber); }
+    .kpi-card.c-amber::before { background: radial-gradient(circle, var(--amber-glow) 0%, transparent 70%); }
+    .kpi-card.c-amber:hover, .kpi-card.c-amber.kpi-selected { background: var(--amber-dim); }
+
+    .kpi-card.c-lime    { box-shadow: inset 2px 0 0 var(--lime); }
+    .kpi-card.c-lime .kpi-value { color: var(--lime); }
+    .kpi-card.c-lime::before { background: radial-gradient(circle, var(--lime-glow) 0%, transparent 70%); }
+    .kpi-card.c-lime:hover, .kpi-card.c-lime.kpi-selected   { background: var(--lime-dim); }
+
+    .kpi-card.c-teal    { box-shadow: inset 2px 0 0 var(--teal); }
+    .kpi-card.c-teal .kpi-value { color: var(--teal); }
+    .kpi-card.c-teal::before { background: radial-gradient(circle, var(--teal-glow) 0%, transparent 70%); }
+    .kpi-card.c-teal:hover, .kpi-card.c-teal.kpi-selected   { background: var(--teal-dim); }
+
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: -20px;
+      left: -20px;
+      width: 80px;
+      height: 80px;
+      pointer-events: none;
+    }
+
+    .kpi-label {
+      font-size: 0.575rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-3);
+      margin-bottom: 0.6rem;
+    }
+
+    .kpi-value {
+      font-size: 2.6rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      letter-spacing: -0.03em;
+    }
+
+    .kpi-sub {
+      font-size: 0.575rem;
+      color: var(--text-3);
+      margin-top: 0.4rem;
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Section header ───────────────────────────────── */
+    .section-header {
+      font-size: 0.575rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-3);
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .section-header::before {
+      content: '──';
+      color: var(--border-hi);
+      letter-spacing: -0.1em;
+    }
+
+    /* ── Timeline ─────────────────────────────────────── */
+    .timeline-section {
+      padding: 1.25rem 1.5rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .chart-wrap {
+      height: 400px;
+      position: relative;
+    }
+
+    /* ── Three-column leaderboard ─────────────────────── */
+    .three-col {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel {
+      background: var(--bg);
+      padding: 1.25rem 1.5rem 1.5rem;
+    }
+
+    .panel .bar-list {
+      max-height: 1040px;
+      overflow-y: auto;
+    }
+
+    /* ── Bar list ─────────────────────────────────────── */
+    .bar-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.875rem;
+    }
+
+    .bar-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 5px;
+    }
+
+    .bar-name {
+      font-size: 0.7rem;
+      color: var(--text-1);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 70%;
+    }
+
+    .bar-count {
+      font-size: 0.6rem;
+      color: var(--text-2);
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+    }
+
+    .bar-track {
+      height: 2px;
+      background: var(--border);
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      width: 0;
+      transition: width 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .bar-fill.c-amber  { background: var(--amber); }
+    .bar-fill.c-lime   { background: var(--lime); }
+    .bar-fill.c-teal   { background: var(--teal); }
+    .bar-fill.c-violet { background: var(--violet); }
+
+    /* ── Recent feed ──────────────────────────────────── */
+    .feed-section {
+      padding: 1.25rem 1.5rem 1.5rem;
+    }
+
+    .feed-list {
+      display: flex;
+      flex-direction: column;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    .feed-item {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.45rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.65rem;
+      animation: slide-in 0.18s ease-out both;
+    }
+
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateY(-3px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .event-tag {
+      padding: 2px 7px;
+      font-size: 0.575rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .event-tag.c-amber  { background: var(--amber-dim);  color: var(--amber); }
+    .event-tag.c-lime   { background: var(--lime-dim);   color: var(--lime); }
+    .event-tag.c-teal   { background: var(--teal-dim);   color: var(--teal); }
+    .event-tag.c-violet { background: var(--violet-dim); color: var(--violet); }
+
+    .feed-host    { color: var(--text-1); flex-shrink: 0; }
+    .feed-sep     { color: var(--text-3); flex-shrink: 0; }
+    .feed-project { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .feed-time    { color: var(--text-3); margin-left: auto; flex-shrink: 0; font-size: 0.575rem; }
+
+    /* ── States ───────────────────────────────────────── */
+    .empty {
+      color: var(--text-3);
+      font-size: 0.65rem;
+      padding: 1.5rem 0;
+      text-align: center;
+    }
+
+    /* ── Panel search inputs ──────────────────────────── */
+    .panel-search {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-1);
+      font-family: var(--font);
+      font-size: 0.65rem;
+      padding: 5px 9px;
+      margin-bottom: 1rem;
+      outline: none;
+      border-radius: 0;
+      transition: border-color 0.12s;
+    }
+    .panel-search:focus { border-color: var(--amber); }
+    .panel-search::placeholder { color: var(--text-3); }
+
+    /* ── Scrollbar ────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 3px; height: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-hi); }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────── -->
+<header>
+  <div class="logo">
+    <span class="logo-prefix">~/</span>ai-telemetry<span class="logo-cursor"></span>
+  </div>
+
+  <div class="header-center">
+    <span class="live-dot"></span>
+    <span>LIVE</span>
+    <span style="color:var(--border-hi)">·</span>
+    <span id="last-updated">—</span>
+  </div>
+
+  <div class="period-filter">
+    <button class="period-btn" data-period="24h">24H</button>
+    <button class="period-btn" data-period="7d">7D</button>
+    <button class="period-btn" data-period="30d">30D</button>
+    <button class="period-btn" data-period="all">ALL</button>
+  </div>
+</header>
+
+<!-- ── KPI Strip ──────────────────────────────────────── -->
+<div class="kpi-grid">
+  <div class="kpi-card c-amber">
+    <div class="kpi-label">Skill Calls</div>
+    <div class="kpi-value" id="kpi-invocations">—</div>
+    <div class="kpi-sub">skill invocations</div>
+  </div>
+  <div class="kpi-card c-lime">
+    <div class="kpi-label">Agent Calls</div>
+    <div class="kpi-value" id="kpi-agents">—</div>
+    <div class="kpi-sub">custom agent spawns</div>
+  </div>
+  <div class="kpi-card c-teal">
+    <div class="kpi-label">MCP Calls</div>
+    <div class="kpi-value" id="kpi-mcp">—</div>
+    <div class="kpi-sub">MCP tool invocations</div>
+  </div>
+</div>
+
+<!-- ── Timeline ───────────────────────────────────────── -->
+<div class="timeline-section">
+  <div class="section-header">Invocations over time</div>
+  <div class="chart-wrap">
+    <canvas id="timeline-chart"></canvas>
+  </div>
+</div>
+
+<!-- ── Leaderboards ───────────────────────────────────── -->
+<div class="three-col">
+  <div class="panel">
+    <div class="section-header">Skill Usage</div>
+    <input id="skill-search" class="panel-search" type="text" placeholder="filter skills…" autocomplete="off">
+    <div class="bar-list" id="skill-bars"><div class="empty">loading…</div></div>
+  </div>
+  <div class="panel">
+    <div class="section-header">Agent Usage</div>
+    <input id="agent-search" class="panel-search" type="text" placeholder="filter agents…" autocomplete="off">
+    <div class="bar-list" id="agent-bars"><div class="empty">loading…</div></div>
+  </div>
+  <div class="panel">
+    <div class="section-header">MCP Tool Usage</div>
+    <input id="mcp-search" class="panel-search" type="text" placeholder="filter tools…" autocomplete="off">
+    <div class="bar-list" id="mcp-bars"><div class="empty">loading…</div></div>
+  </div>
+</div>
+
+<!-- ── Recent Feed ────────────────────────────────────── -->
+<div class="feed-section">
+  <div class="section-header">Recent events</div>
+  <div class="feed-list" id="feed-list"><div class="empty">loading…</div></div>
+</div>
+
+<script>
+  (() => {
+    const PERIODS = ['24h', '7d', '30d', 'all'];
+    let period = '7d';
+    let chart  = null;
+    let lastUpdated = 0;
+    let refreshTimer = null;
+    let allSkills = [];
+    let allAgents = [];
+    let allMcp    = [];
+    let selectedDatasetIdx = null;
+
+    // color map keyed by event_type
+    const COLOR = {
+      skill: { css: 'c-amber', hex: '#E8A048' },
+      agent: { css: 'c-lime',  hex: '#6BAF7A' },
+      mcp:   { css: 'c-teal',  hex: '#5B8FA8' },
+    };
+
+    // ── Boot ────────────────────────────────────────────
+    document.fonts.ready.then(() => {
+      const hash = location.hash.replace('#', '');
+      if (PERIODS.includes(hash)) period = hash;
+
+      document.querySelectorAll('.period-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          period = btn.dataset.period;
+          location.hash = period;
+          syncButtons();
+          load();
+        });
+      });
+
+      window.addEventListener('hashchange', () => {
+        const h = location.hash.replace('#', '');
+        if (PERIODS.includes(h) && h !== period) {
+          period = h;
+          syncButtons();
+          load();
+        }
+      });
+
+      document.getElementById('skill-search').addEventListener('input', applySkillFilter);
+      document.getElementById('agent-search').addEventListener('input', applyAgentFilter);
+      document.getElementById('mcp-search').addEventListener('input', applyMcpFilter);
+
+      const kpiCards = document.querySelectorAll('.kpi-grid .kpi-card');
+      kpiCards.forEach((card, i) => {
+        card.addEventListener('click', () => {
+          if (!chart) return;
+          if (selectedDatasetIdx === i) {
+            selectedDatasetIdx = null;
+            chart.data.datasets.forEach(ds => { ds.hidden = false; });
+            kpiCards.forEach(c => c.classList.remove('kpi-selected'));
+          } else {
+            selectedDatasetIdx = i;
+            chart.data.datasets.forEach((ds, j) => { ds.hidden = (j !== i); });
+            kpiCards.forEach(c => c.classList.remove('kpi-selected'));
+            card.classList.add('kpi-selected');
+          }
+          chart.update();
+        });
+      });
+
+      syncButtons();
+      load();
+      setInterval(tickTicker, 4000);
+    });
+
+    // ── Period buttons ───────────────────────────────────
+    function syncButtons() {
+      document.querySelectorAll('.period-btn').forEach(btn =>
+        btn.classList.toggle('active', btn.dataset.period === period)
+      );
+    }
+
+    // ── Ticker ───────────────────────────────────────────
+    function tickTicker() {
+      if (!lastUpdated) return;
+      const sec = Math.round((Date.now() - lastUpdated) / 1000);
+      const el = document.getElementById('last-updated');
+      if (!el) return;
+      el.textContent = sec < 5 ? 'just now' : `${sec}s ago`;
+    }
+
+    // ── Fetch ────────────────────────────────────────────
+    async function load() {
+      clearTimeout(refreshTimer);
+      try {
+        const res = await fetch(`/api/stats?period=${period}`);
+        if (!res.ok) throw new Error(res.status);
+        const data = await res.json();
+        lastUpdated = Date.now();
+        tickTicker();
+        render(data);
+      } catch (e) {
+        console.error('[ai-telemetry] fetch failed:', e);
+      }
+      refreshTimer = setTimeout(load, 30_000);
+    }
+
+    // ── Render ───────────────────────────────────────────
+    function render(data) {
+      const skillTotal = (data.skills || []).reduce((s, r) => s + r.count, 0);
+      const agentTotal = (data.agents || []).reduce((s, r) => s + r.count, 0);
+      const mcpTotal   = (data.mcp    || []).reduce((s, r) => s + r.count, 0);
+      countUp('kpi-invocations', skillTotal);
+      countUp('kpi-agents',      agentTotal);
+      countUp('kpi-mcp',         mcpTotal);
+      renderChart(data.timeline || []);
+      allSkills = data.skills  || [];
+      allAgents = data.agents  || [];
+      allMcp    = data.mcp     || [];
+      applySkillFilter();
+      applyAgentFilter();
+      applyMcpFilter();
+      renderFeed(data.recent || []);
+    }
+
+    // ── Filters ───────────────────────────────────────────
+    function applySkillFilter() {
+      const q = (document.getElementById('skill-search')?.value || '').toLowerCase();
+      const filtered = q ? allSkills.filter(s => s.skill.toLowerCase().includes(q)) : allSkills;
+      renderBars('skill-bars', filtered, 'skill', 'c-amber');
+    }
+
+    function applyAgentFilter() {
+      const q = (document.getElementById('agent-search')?.value || '').toLowerCase();
+      const filtered = q ? allAgents.filter(a => a.name.toLowerCase().includes(q)) : allAgents;
+      renderBars('agent-bars', filtered, 'name', 'c-lime');
+    }
+
+    function applyMcpFilter() {
+      const q = (document.getElementById('mcp-search')?.value || '').toLowerCase();
+      const filtered = q ? allMcp.filter(m => m.name.toLowerCase().includes(q)) : allMcp;
+      renderBars('mcp-bars', filtered, 'name', 'c-teal');
+    }
+
+    // ── Count-up animation ───────────────────────────────
+    function countUp(id, target) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const start = performance.now();
+      const dur = 550;
+      (function step(now) {
+        const t = Math.min((now - start) / dur, 1);
+        const ease = 1 - Math.pow(1 - t, 3);
+        el.textContent = Math.round(target * ease).toLocaleString();
+        if (t < 1) requestAnimationFrame(step);
+      })(start);
+    }
+
+    // ── Timeline chart (4 datasets) ───────────────────────
+    function renderChart(timeline) {
+      const labels  = timeline.map(d => {
+        const dt = new Date(d.date + 'T12:00:00Z');
+        return dt.toLocaleDateString('en', { month: 'short', day: 'numeric' });
+      });
+
+      const datasets = [
+        { label: 'Skills',  key: 'skills', color: COLOR.skill.hex },
+        { label: 'Agents',  key: 'agents', color: COLOR.agent.hex },
+        { label: 'MCP',     key: 'mcp',    color: COLOR.mcp.hex   },
+      ].map(({ label, key, color }) => ({
+        label,
+        data: timeline.map(d => d[key] ?? 0),
+        borderColor: color,
+        borderWidth: 1.5,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        pointHoverBackgroundColor: color,
+        pointHoverBorderColor: '#0a0a08',
+        pointHoverBorderWidth: 2,
+        fill: false,
+        tension: 0.35,
+      }));
+
+      const monoFont = { family: "'Martian Mono', monospace", size: 9 };
+
+      if (chart) {
+        chart.data.labels = labels;
+        chart.data.datasets.forEach((ds, i) => { ds.data = datasets[i].data; });
+        chart.update('active');
+        return;
+      }
+
+      chart = new Chart(document.getElementById('timeline-chart'), {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          animation: { duration: 400 },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#111110',
+              borderColor: '#3a3a36',
+              borderWidth: 1,
+              titleColor: '#4A4844',
+              bodyColor: '#E8E4D9',
+              padding: { x: 10, y: 8 },
+              cornerRadius: 0,
+              displayColors: true,
+              boxWidth: 8,
+              boxHeight: 8,
+              titleFont: monoFont,
+              bodyFont: { family: "'Martian Mono', monospace", size: 10 },
+            },
+          },
+          scales: {
+            x: {
+              grid: { color: '#252522', drawBorder: false },
+              ticks: { color: '#4A4844', font: monoFont, maxTicksLimit: 10, maxRotation: 0 },
+              border: { display: false },
+            },
+            y: {
+              grid: { color: '#252522', drawBorder: false },
+              ticks: { color: '#4A4844', font: monoFont, maxTicksLimit: 5, precision: 0 },
+              border: { display: false },
+              beginAtZero: true,
+            },
+          },
+        },
+      });
+    }
+
+    // ── Horizontal bars ───────────────────────────────────
+    function renderBars(containerId, items, nameKey, colorClass) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+
+      const emptyMsg = {
+        'agent-bars': 'no custom agents recorded yet',
+        'mcp-bars':   'no MCP calls recorded yet',
+      }[containerId] || 'no data for this period';
+
+      if (!items || !items.length) {
+        el.innerHTML = `<div class="empty">${emptyMsg}</div>`;
+        return;
+      }
+
+      el.innerHTML = items.slice(0, 15).map(item => `
+        <div>
+          <div class="bar-row">
+            <span class="bar-name">${esc(item[nameKey])}</span>
+            <span class="bar-count">${item.count.toLocaleString()}</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill ${colorClass}" data-pct="${item.pct || 0}" style="width:0"></div>
+          </div>
+        </div>
+      `).join('');
+
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        el.querySelectorAll('.bar-fill').forEach(b => { b.style.width = b.dataset.pct + '%'; });
+      }));
+    }
+
+    // ── Event feed ────────────────────────────────────────
+    function renderFeed(events) {
+      const el = document.getElementById('feed-list');
+      if (!el) return;
+
+      if (!events || !events.length) {
+        el.innerHTML = '<div class="empty">no events yet</div>';
+        return;
+      }
+
+      const LABEL = { skill: 'SKILL', agent: 'AGENT', mcp: 'MCP' };
+
+      el.innerHTML = events.map((e, i) => {
+        const type   = e.event_type || 'skill';
+        const clr    = COLOR[type]?.css || 'c-amber';
+        const label  = LABEL[type] || type.toUpperCase();
+        return `
+          <div class="feed-item" style="animation-delay:${i * 18}ms">
+            <span class="event-tag ${clr}">${label}</span>
+            <span class="bar-name" style="max-width:none;color:var(--text-1)">${esc(e.name)}</span>
+            <span class="feed-sep">·</span>
+            <span class="feed-host">${esc(e.hostname)}</span>
+            <span class="feed-sep">·</span>
+            <span class="feed-project">${esc(e.project)}</span>
+            <span class="feed-time">${timeAgo(e.timestamp)}</span>
+          </div>`;
+      }).join('');
+    }
+
+    // ── Helpers ───────────────────────────────────────────
+    function timeAgo(ts) {
+      const sec = Math.round((Date.now() - new Date(ts).getTime()) / 1000);
+      if (sec < 60)    return `${sec}s ago`;
+      if (sec < 3600)  return `${Math.floor(sec / 60)}m ago`;
+      if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
+      return `${Math.floor(sec / 86400)}d ago`;
+    }
+
+    function esc(s) {
+      return String(s ?? '—')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+  })();
+</script>
+</body>
+</html>
