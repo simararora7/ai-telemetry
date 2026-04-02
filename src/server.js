@@ -122,6 +122,41 @@ function startHttpServer() {
     };
   }
 
+  function getStatsByRange(from, to) {
+    const where = "WHERE timestamp >= ? AND timestamp < date(?, '+1 day')";
+    const p = [from, to];
+    const run = (sql) => db.prepare(sql).all(...p);
+
+    const skillsRows  = run(`SELECT name AS skill, COUNT(*) AS n FROM events ${where} AND event_type='skill' GROUP BY name ORDER BY n DESC LIMIT 15`);
+    const agentsRows  = run(`SELECT name, COUNT(*) AS n FROM events ${where} AND event_type='agent' GROUP BY name ORDER BY n DESC LIMIT 15`);
+    const mcpRows     = run(`SELECT name, COUNT(*) AS n FROM events ${where} AND event_type='mcp' GROUP BY name ORDER BY n DESC LIMIT 15`);
+    const timelineRaw = run(`SELECT date(timestamp) AS date, event_type, COUNT(*) AS n FROM events ${where} GROUP BY date(timestamp), event_type ORDER BY date`);
+    const recentRows  = run(`SELECT id, event_type, name, cwd, timestamp FROM events ${where} ORDER BY id DESC LIMIT 30`);
+
+    const tl = {};
+    for (const r of timelineRaw) {
+      if (!tl[r.date]) tl[r.date] = { skills: 0, agents: 0, mcp: 0 };
+      const key = { skill: "skills", agent: "agents", mcp: "mcp" }[r.event_type];
+      if (key) tl[r.date][key] = r.n;
+    }
+    const timeline = Object.entries(tl).sort(([a], [b]) => a.localeCompare(b)).map(([date, v]) => ({ date, ...v }));
+
+    const pct = (n, max) => (max ? Math.round((n / max) * 1000) / 10 : 0);
+    const ms = skillsRows[0]?.n || 1, ma = agentsRows[0]?.n || 1, mm = mcpRows[0]?.n || 1;
+
+    return {
+      period: `${from}/${to}`,
+      skills:  skillsRows.map((r) => ({ skill: r.skill, count: r.n, pct: pct(r.n, ms) })),
+      agents:  agentsRows.map((r) => ({ name: r.name, count: r.n, pct: pct(r.n, ma) })),
+      mcp:     mcpRows.map((r)    => ({ name: r.name, count: r.n, pct: pct(r.n, mm) })),
+      timeline,
+      recent: recentRows.map((r) => ({
+        id: r.id, event_type: r.event_type, name: r.name,
+        project: path.basename(r.cwd || "") || "—", timestamp: r.timestamp,
+      })),
+    };
+  }
+
   const dashboardHtml = fs.existsSync(path.join(STATIC_DIR, "dashboard.html"))
     ? fs.readFileSync(path.join(STATIC_DIR, "dashboard.html"))
     : Buffer.from("<h1>Dashboard not found</h1>");
@@ -145,6 +180,12 @@ function startHttpServer() {
     }
 
     if (req.method === "GET" && url.pathname === "/api/stats") {
+      const from = url.searchParams.get("from");
+      const to   = url.searchParams.get("to");
+      if (from && to) {
+        res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(getStatsByRange(from, to)));
+        return;
+      }
       const period = url.searchParams.get("period") || "7d";
       const stats = getStats(["24h", "7d", "30d", "all"].includes(period) ? period : "7d");
       res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(stats));

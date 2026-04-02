@@ -10,6 +10,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    [hidden] { display: none !important; }
 
     :root {
       --bg:           #0a0a08;
@@ -152,6 +153,206 @@
       font-weight: 700;
       border-color: var(--amber);
     }
+
+    /* ── Date range picker ────────────────────────────── */
+    .date-range-wrapper { position: relative; }
+
+    .date-range-panel {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      background: var(--surface);
+      border: 1px solid var(--border-hi);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      z-index: 200;
+      display: flex;
+      flex-direction: row;
+      min-width: 640px;
+    }
+
+    /* Calendar column */
+    .dr-cal-col {
+      padding: 16px;
+      border-right: 1px solid var(--border);
+      min-width: 240px;
+    }
+
+    .dr-cal-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .dr-cal-nav button {
+      background: none;
+      border: 1px solid transparent;
+      color: var(--text-2);
+      font-family: var(--font);
+      font-size: 1.1rem;
+      line-height: 1;
+      padding: 2px 8px;
+      cursor: pointer;
+      transition: color 0.1s, border-color 0.1s;
+    }
+
+    .dr-cal-nav button:hover { color: var(--text-1); border-color: var(--border-hi); }
+
+    #dr-month-label {
+      font-size: 0.7rem;
+      color: var(--text-1);
+      letter-spacing: 0.05em;
+    }
+
+    .dr-cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+    }
+
+    .dr-day-hdr {
+      font-size: 0.525rem;
+      color: var(--text-3);
+      text-align: center;
+      padding: 2px 0 6px;
+      letter-spacing: 0.06em;
+    }
+
+    .dr-day {
+      font-size: 0.625rem;
+      text-align: center;
+      padding: 5px 2px;
+      cursor: pointer;
+      color: var(--text-1);
+      border-radius: 2px;
+      position: relative;
+      transition: background 0.08s;
+      user-select: none;
+    }
+
+    .dr-day:hover { background: var(--border-hi); }
+    .dr-day.other-month { color: var(--text-3); }
+
+    .dr-day.today::after {
+      content: '';
+      position: absolute;
+      bottom: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--amber);
+    }
+
+    .dr-day.sel-start,
+    .dr-day.sel-end {
+      background: var(--amber);
+      color: var(--bg);
+      font-weight: 700;
+    }
+
+    .dr-day.in-range {
+      background: var(--amber-dim);
+      border-radius: 0;
+    }
+
+    /* Absolute time range column */
+    .dr-abs-col {
+      padding: 16px;
+      border-right: 1px solid var(--border);
+      min-width: 210px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .dr-col-title {
+      font-size: 0.575rem;
+      color: var(--text-3);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .dr-label {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      font-size: 0.575rem;
+      color: var(--text-2);
+      letter-spacing: 0.06em;
+    }
+
+    .dr-label input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text-1);
+      font-family: var(--font);
+      font-size: 0.65rem;
+      padding: 6px 8px;
+      outline: none;
+      transition: border-color 0.12s;
+    }
+
+    .dr-label input:focus { border-color: var(--amber); }
+
+    #dr-apply {
+      background: var(--amber);
+      color: var(--bg);
+      border: none;
+      padding: 7px 14px;
+      font-family: var(--font);
+      font-size: 0.6rem;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: auto;
+    }
+
+    #dr-apply:hover:not(:disabled) { opacity: 0.85; }
+    #dr-apply:disabled { opacity: 0.35; cursor: default; }
+
+    /* Quick ranges column */
+    .dr-quick-col {
+      padding: 16px;
+      min-width: 160px;
+    }
+
+    .dr-quick-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      margin-top: 8px;
+    }
+
+    .dr-quick-btn {
+      background: none;
+      border: none;
+      color: var(--text-2);
+      font-family: var(--font);
+      font-size: 0.65rem;
+      padding: 5px 8px;
+      text-align: left;
+      width: 100%;
+      cursor: pointer;
+      transition: background 0.08s, color 0.08s;
+    }
+
+    .dr-quick-btn:hover { background: var(--amber-dim); color: var(--amber); }
+
+    /* ── Chart selection rect ─────────────────────────── */
+    #selection-rect {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(232,160,72,0.10);
+      border-left: 1px solid rgba(232,160,72,0.5);
+      border-right: 1px solid rgba(232,160,72,0.5);
+      top: 0;
+      height: 100%;
+    }
+
+    #timeline-chart { cursor: crosshair; }
 
     /* ── KPI Strip ────────────────────────────────────── */
     .kpi-grid {
@@ -407,12 +608,41 @@
     <span id="last-updated">—</span>
   </div>
 
-  <div class="period-filter">
-    <button class="period-btn" data-period="24h">24H</button>
-    <button class="period-btn" data-period="7d">7D</button>
-    <button class="period-btn" data-period="30d">30D</button>
-    <button class="period-btn" data-period="all">ALL</button>
-  </div>
+  <div class="date-range-wrapper">
+      <button class="period-btn active" id="date-range-btn" title="Change time range">Last 7 days</button>
+      <div class="date-range-panel" id="date-range-panel" hidden>
+        <!-- Column 1: calendar -->
+        <div class="dr-cal-col">
+          <div class="dr-cal-nav">
+            <button id="dr-prev">&#x2039;</button>
+            <span id="dr-month-label"></span>
+            <button id="dr-next">&#x203a;</button>
+          </div>
+          <div id="dr-cal-grid" class="dr-cal-grid"></div>
+        </div>
+        <!-- Column 2: from/to + apply -->
+        <div class="dr-abs-col">
+          <div class="dr-col-title">Absolute time range</div>
+          <label class="dr-label">From<input type="text" id="dr-from" readonly placeholder="—"></label>
+          <label class="dr-label">To<input type="text" id="dr-to" readonly placeholder="—"></label>
+          <button id="dr-apply" disabled>Apply time range</button>
+        </div>
+        <!-- Column 3: quick ranges -->
+        <div class="dr-quick-col">
+          <div class="dr-col-title">Quick ranges</div>
+          <div class="dr-quick-list">
+            <button class="dr-quick-btn" data-qr="today">Today</button>
+            <button class="dr-quick-btn" data-qr="yesterday">Yesterday</button>
+            <button class="dr-quick-btn" data-qr="7d">Last 7 days</button>
+            <button class="dr-quick-btn" data-qr="14d">Last 14 days</button>
+            <button class="dr-quick-btn" data-qr="30d">Last 30 days</button>
+            <button class="dr-quick-btn" data-qr="90d">Last 90 days</button>
+            <button class="dr-quick-btn" data-qr="month">This month</button>
+            <button class="dr-quick-btn" data-qr="all">All time</button>
+          </div>
+        </div>
+      </div>
+    </div>
 </header>
 
 <!-- ── KPI Strip ──────────────────────────────────────── -->
@@ -439,6 +669,7 @@
   <div class="section-header">Invocations over time</div>
   <div class="chart-wrap">
     <canvas id="timeline-chart"></canvas>
+    <div id="selection-rect" hidden></div>
   </div>
 </div>
 
@@ -469,8 +700,14 @@
 
 <script>
   (() => {
-    const PERIODS = ['24h', '7d', '30d', 'all'];
     let period = '7d';
+    let rangeLabel = 'Last 7 days';
+    let customRange  = null;   // { from, to } ISO date strings, or null
+    let lastTimeline = [];     // raw timeline rows with .date field
+    let calYear    = new Date().getFullYear();
+    let calMonth   = new Date().getMonth();  // 0-indexed
+    let calSelFrom = null;   // 'YYYY-MM-DD'
+    let calSelTo   = null;   // 'YYYY-MM-DD'
     let chart  = null;
     let lastUpdated = 0;
     let refreshTimer = null;
@@ -488,27 +725,6 @@
 
     // ── Boot ────────────────────────────────────────────
     document.fonts.ready.then(() => {
-      const hash = location.hash.replace('#', '');
-      if (PERIODS.includes(hash)) period = hash;
-
-      document.querySelectorAll('.period-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          period = btn.dataset.period;
-          location.hash = period;
-          syncButtons();
-          load();
-        });
-      });
-
-      window.addEventListener('hashchange', () => {
-        const h = location.hash.replace('#', '');
-        if (PERIODS.includes(h) && h !== period) {
-          period = h;
-          syncButtons();
-          load();
-        }
-      });
-
       document.getElementById('skill-search').addEventListener('input', applySkillFilter);
       document.getElementById('agent-search').addEventListener('input', applyAgentFilter);
       document.getElementById('mcp-search').addEventListener('input', applyMcpFilter);
@@ -531,16 +747,221 @@
         });
       });
 
-      syncButtons();
       load();
       setInterval(tickTicker, 4000);
+
+      // ── Date range picker ────────────────────────────────
+      const drBtn   = document.getElementById('date-range-btn');
+      const drPanel = document.getElementById('date-range-panel');
+
+      drBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const opening = drPanel.hidden;
+        drPanel.hidden = !drPanel.hidden;
+        if (opening) renderCal();
+      });
+
+      document.addEventListener('click', () => { drPanel.hidden = true; });
+      drPanel.addEventListener('click', e => e.stopPropagation());
+
+      document.getElementById('dr-prev').addEventListener('click', () => {
+        calMonth--;
+        if (calMonth < 0) { calMonth = 11; calYear--; }
+        renderCal();
+      });
+
+      document.getElementById('dr-next').addEventListener('click', () => {
+        calMonth++;
+        if (calMonth > 11) { calMonth = 0; calYear++; }
+        renderCal();
+      });
+
+      document.getElementById('dr-apply').addEventListener('click', () => {
+        if (!calSelFrom || !calSelTo) return;
+        drPanel.hidden = true;
+        applyCustomRange(calSelFrom, calSelTo);
+      });
+
+      document.querySelectorAll('.dr-quick-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          drPanel.hidden = true;
+          quickRange(btn.dataset.qr);
+        });
+      });
+
+      // ── Chart drag-to-select ─────────────────────────────
+      let isDragging = false;
+      let dragStartX = null;
+      const canvas  = document.getElementById('timeline-chart');
+      const selRect = document.getElementById('selection-rect');
+
+      canvas.addEventListener('mousedown', e => {
+        if (!chart || !lastTimeline.length) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        if (x < chart.chartArea.left || x > chart.chartArea.right) return;
+        isDragging = true;
+        dragStartX = x;
+        selRect.style.left   = `${x}px`;
+        selRect.style.top    = `${chart.chartArea.top}px`;
+        selRect.style.height = `${chart.chartArea.bottom - chart.chartArea.top}px`;
+        selRect.style.width  = '0';
+        selRect.hidden = false;
+      });
+
+      canvas.addEventListener('mousemove', e => {
+        if (!isDragging) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = Math.max(chart.chartArea.left,
+                           Math.min(chart.chartArea.right, e.clientX - rect.left));
+        selRect.style.left  = `${Math.min(dragStartX, x)}px`;
+        selRect.style.width = `${Math.abs(x - dragStartX)}px`;
+      });
+
+      document.addEventListener('mouseup', e => {
+        if (!isDragging) return;
+        isDragging = false;
+        selRect.hidden = true;
+        const rect = canvas.getBoundingClientRect();
+        const endX = e.clientX - rect.left;
+        const clamp = v => Math.max(chart.chartArea.left, Math.min(chart.chartArea.right, v));
+        let i0 = Math.round(chart.scales.x.getValueForPixel(clamp(Math.min(dragStartX, endX))));
+        let i1 = Math.round(chart.scales.x.getValueForPixel(clamp(Math.max(dragStartX, endX))));
+        i0 = Math.max(0, Math.min(lastTimeline.length - 1, i0));
+        i1 = Math.max(0, Math.min(lastTimeline.length - 1, i1));
+        if (i0 >= i1) return;
+        applyCustomRange(lastTimeline[i0].date, lastTimeline[i1].date);
+      });
     });
 
-    // ── Period buttons ───────────────────────────────────
-    function syncButtons() {
-      document.querySelectorAll('.period-btn').forEach(btn =>
-        btn.classList.toggle('active', btn.dataset.period === period)
-      );
+    // ── Date range helpers ───────────────────────────────
+    function fmtDate(iso) {
+      return new Date(iso + 'T12:00:00Z')
+        .toLocaleDateString('en', { month: 'short', day: 'numeric' });
+    }
+
+    function applyCustomRange(from, to, label) {
+      customRange = { from, to };
+      period = null;
+      rangeLabel = label || `${fmtDate(from)} – ${fmtDate(to)}`;
+      document.getElementById('date-range-btn').textContent = rangeLabel;
+      load();
+    }
+
+    // ── Calendar ─────────────────────────────────────────
+    function isoDate(y, m, d) {
+      return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+
+    function renderCal() {
+      const todayIso = new Date().toISOString().slice(0, 10);
+      const label = new Date(calYear, calMonth, 1)
+        .toLocaleDateString('en', { month: 'long', year: 'numeric' });
+      document.getElementById('dr-month-label').textContent = label;
+
+      const DAY_HDRS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+      let html = DAY_HDRS.map(d => `<div class="dr-day-hdr">${d}</div>`).join('');
+
+      const firstDow  = new Date(calYear, calMonth, 1).getDay();
+      const daysInMon = new Date(calYear, calMonth + 1, 0).getDate();
+      const prevDays  = new Date(calYear, calMonth, 0).getDate();
+
+      // Prev-month fill
+      for (let i = firstDow - 1; i >= 0; i--) {
+        const d = prevDays - i;
+        const m = calMonth === 0 ? 11 : calMonth - 1;
+        const y = calMonth === 0 ? calYear - 1 : calYear;
+        html += dayCell(isoDate(y, m, d), d, true, todayIso);
+      }
+
+      // Current month
+      for (let d = 1; d <= daysInMon; d++) {
+        html += dayCell(isoDate(calYear, calMonth, d), d, false, todayIso);
+      }
+
+      // Next-month fill
+      const total = Math.ceil((firstDow + daysInMon) / 7) * 7;
+      let nd = 1;
+      for (let i = firstDow + daysInMon; i < total; i++, nd++) {
+        const m = calMonth === 11 ? 0 : calMonth + 1;
+        const y = calMonth === 11 ? calYear + 1 : calYear;
+        html += dayCell(isoDate(y, m, nd), nd, true, todayIso);
+      }
+
+      const grid = document.getElementById('dr-cal-grid');
+      grid.innerHTML = html;
+      grid.querySelectorAll('.dr-day[data-iso]').forEach(cell => {
+        cell.addEventListener('click', () => onCalDayClick(cell.dataset.iso));
+      });
+    }
+
+    function dayCell(iso, num, otherMonth, todayIso) {
+      const cls = ['dr-day'];
+      if (otherMonth) cls.push('other-month');
+      if (iso === todayIso) cls.push('today');
+      if (calSelFrom && calSelTo) {
+        if (iso === calSelFrom) cls.push('sel-start');
+        else if (iso === calSelTo) cls.push('sel-end');
+        else if (iso > calSelFrom && iso < calSelTo) cls.push('in-range');
+      } else if (iso === calSelFrom) {
+        cls.push('sel-start');
+      }
+      return `<div class="${cls.join(' ')}" data-iso="${iso}">${num}</div>`;
+    }
+
+    function onCalDayClick(iso) {
+      if (!calSelFrom || calSelTo) {
+        calSelFrom = iso;
+        calSelTo = null;
+      } else {
+        if (iso >= calSelFrom) {
+          calSelTo = iso;
+        } else {
+          calSelFrom = iso;
+          calSelTo = null;
+        }
+      }
+      document.getElementById('dr-from').value = calSelFrom || '';
+      document.getElementById('dr-to').value   = calSelTo || '';
+      document.getElementById('dr-apply').disabled = !(calSelFrom && calSelTo);
+      renderCal();
+    }
+
+    const QUICK_LABELS = {
+      today: 'Today', yesterday: 'Yesterday',
+      '7d': 'Last 7 days', '14d': 'Last 14 days',
+      '30d': 'Last 30 days', '90d': 'Last 90 days',
+      month: 'This month', all: 'All time',
+    };
+
+    function quickRange(key) {
+      const now = new Date();
+      // Use local date components to avoid UTC timezone shift
+      const isoLocal = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const shift = n => { const d = new Date(now); d.setDate(d.getDate() + n); return d; };
+      const todayIso = isoLocal(now);
+      let from, to = todayIso;
+      switch (key) {
+        case 'today':     from = todayIso; break;
+        case 'yesterday': { const y = shift(-1); from = to = isoLocal(y); break; }
+        case '7d':        from = isoLocal(shift(-6));  break;
+        case '14d':       from = isoLocal(shift(-13)); break;
+        case '30d':       from = isoLocal(shift(-29)); break;
+        case '90d':       from = isoLocal(shift(-89)); break;
+        case 'month':     from = isoLocal(new Date(now.getFullYear(), now.getMonth(), 1)); break;
+        case 'all':       from = '2020-01-01'; break;
+        default:          return;
+      }
+      // Sync calendar state so it reflects the selection when panel reopens
+      calSelFrom = from;
+      calSelTo   = to;
+      const toDate = new Date(to + 'T12:00:00');
+      calYear  = toDate.getFullYear();
+      calMonth = toDate.getMonth();
+      document.getElementById('dr-from').value = from;
+      document.getElementById('dr-to').value   = to;
+      document.getElementById('dr-apply').disabled = false;
+      applyCustomRange(from, to, QUICK_LABELS[key]);
     }
 
     // ── Ticker ───────────────────────────────────────────
@@ -556,7 +977,10 @@
     async function load() {
       clearTimeout(refreshTimer);
       try {
-        const res = await fetch(`/api/stats?period=${period}`);
+        const apiUrl = customRange
+          ? `/api/stats?from=${customRange.from}&to=${customRange.to}`
+          : `/api/stats?period=${period}`;
+        const res = await fetch(apiUrl);
         if (!res.ok) throw new Error(res.status);
         const data = await res.json();
         lastUpdated = Date.now();
@@ -621,6 +1045,7 @@
 
     // ── Timeline chart (4 datasets) ───────────────────────
     function renderChart(timeline) {
+      lastTimeline = timeline;
       const labels  = timeline.map(d => {
         const dt = new Date(d.date + 'T12:00:00Z');
         return dt.toLocaleDateString('en', { month: 'short', day: 'numeric' });
