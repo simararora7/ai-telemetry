@@ -86,6 +86,11 @@ function startHttpServer() {
     const p = offset ? [offset] : [];
     const run = (sql) => db.prepare(sql).all(...p);
 
+    const granularity = period === "24h" ? "hour" : "day";
+    const groupExpr = granularity === "hour"
+      ? "strftime('%Y-%m-%dT%H:00', timestamp)"
+      : "date(timestamp)";
+
     const sw = where ? `${where} AND event_type='skill'` : "WHERE event_type='skill'";
     const skillsRows = run(`SELECT name AS skill, COUNT(*) AS n FROM events ${sw} GROUP BY name ORDER BY n DESC LIMIT 15`);
 
@@ -95,7 +100,7 @@ function startHttpServer() {
     const mw = where ? `${where} AND event_type='mcp'` : "WHERE event_type='mcp'";
     const mcpRows = run(`SELECT name, COUNT(*) AS n FROM events ${mw} GROUP BY name ORDER BY n DESC LIMIT 15`);
 
-    const timelineRaw = run(`SELECT date(timestamp) AS date, event_type, COUNT(*) AS n FROM events ${where} GROUP BY date(timestamp), event_type ORDER BY date`);
+    const timelineRaw = run(`SELECT ${groupExpr} AS date, event_type, COUNT(*) AS n FROM events ${where} GROUP BY ${groupExpr}, event_type ORDER BY date`);
     const recentRows  = run(`SELECT id, event_type, name, cwd, timestamp FROM events ${where} ORDER BY id DESC LIMIT 30`);
 
     const tl = {};
@@ -111,6 +116,7 @@ function startHttpServer() {
 
     return {
       period,
+      granularity,
       skills:  skillsRows.map((r) => ({ skill: r.skill, count: r.n, pct: pct(r.n, ms) })),
       agents:  agentsRows.map((r) => ({ name: r.name, count: r.n, pct: pct(r.n, ma) })),
       mcp:     mcpRows.map((r)    => ({ name: r.name, count: r.n, pct: pct(r.n, mm) })),
@@ -123,14 +129,20 @@ function startHttpServer() {
   }
 
   function getStatsByRange(from, to) {
-    const where = "WHERE timestamp >= ? AND timestamp < date(?, '+1 day')";
+    const where = "WHERE timestamp >= ? AND timestamp <= ?";
     const p = [from, to];
     const run = (sql) => db.prepare(sql).all(...p);
+
+    const diffMs = new Date(to) - new Date(from);
+    const granularity = diffMs <= 2 * 86_400_000 ? "hour" : "day";
+    const groupExpr = granularity === "hour"
+      ? "strftime('%Y-%m-%dT%H:00', timestamp)"
+      : "date(timestamp)";
 
     const skillsRows  = run(`SELECT name AS skill, COUNT(*) AS n FROM events ${where} AND event_type='skill' GROUP BY name ORDER BY n DESC LIMIT 15`);
     const agentsRows  = run(`SELECT name, COUNT(*) AS n FROM events ${where} AND event_type='agent' GROUP BY name ORDER BY n DESC LIMIT 15`);
     const mcpRows     = run(`SELECT name, COUNT(*) AS n FROM events ${where} AND event_type='mcp' GROUP BY name ORDER BY n DESC LIMIT 15`);
-    const timelineRaw = run(`SELECT date(timestamp) AS date, event_type, COUNT(*) AS n FROM events ${where} GROUP BY date(timestamp), event_type ORDER BY date`);
+    const timelineRaw = run(`SELECT ${groupExpr} AS date, event_type, COUNT(*) AS n FROM events ${where} GROUP BY ${groupExpr}, event_type ORDER BY date`);
     const recentRows  = run(`SELECT id, event_type, name, cwd, timestamp FROM events ${where} ORDER BY id DESC LIMIT 30`);
 
     const tl = {};
@@ -146,6 +158,7 @@ function startHttpServer() {
 
     return {
       period: `${from}/${to}`,
+      granularity,
       skills:  skillsRows.map((r) => ({ skill: r.skill, count: r.n, pct: pct(r.n, ms) })),
       agents:  agentsRows.map((r) => ({ name: r.name, count: r.n, pct: pct(r.n, ma) })),
       mcp:     mcpRows.map((r)    => ({ name: r.name, count: r.n, pct: pct(r.n, mm) })),
